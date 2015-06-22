@@ -1,6 +1,6 @@
 {
   "keyspace": "evolutions",
-  "changesets": [
+  "changeSets": [
     {
       "id": 1,
       "author": "joasun",

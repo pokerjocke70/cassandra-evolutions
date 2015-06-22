@@ -1,11 +1,12 @@
 package com.bisnode.infra.cassandra.evolutions;
 
-import com.bisnode.infra.cassandra.evolutions.domain.Changesets;
+import com.bisnode.infra.cassandra.evolutions.domain.ChangeSets;
 import com.bisnode.infra.cassandra.evolutions.domain.Meta;
 import com.datastax.driver.core.*;
 import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Date;
@@ -13,6 +14,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
+ * Manages all tasks related to Cassandra database evolutions.
+ *
  * @author Joakim Sundqvist
  * @since 21/06/15
  */
@@ -20,9 +23,11 @@ public class DbEvolution {
 
     private final Session session;
 
-    private final Changesets changesets;
+    private final ChangeSets changeSets;
 
     private final KeyspaceStrategy keyspaceStrategy;
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final String EVOLUTION_TABLE = "CREATE TABLE IF NOT EXISTS %s.evolutions(\n" +
             "id int,\n" +
@@ -31,48 +36,84 @@ public class DbEvolution {
             "content text,\n" +
             "PRIMARY KEY (id))";
 
-    private static final String KEYSPACE_DEFINITION = "CREATE KEYSPACE IF NOT EXISTS %s WITH strategy = %s;";
+    private static final String KEYSPACE_DEFINITION = "CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = %s;";
 
     private static final String EVOLUTION_INSERT = "INSERT INTO %s.evolutions (id, author, applied_date, content) values (%s, '%s', '%s', '%s');";
 
     /**
-     * @param session
-     * @param keyspaceStrategy
+     * Constructor
+     *
+     * @param session Cassandra session
+     * @param keyspaceStrategy keyspace strategy
      */
-    public DbEvolution(@Nonnull Session session, @Nonnull KeyspaceStrategy keyspaceStrategy) throws IOException {
+    public DbEvolution(Session session, KeyspaceStrategy keyspaceStrategy) throws IOException {
+        this(session, keyspaceStrategy, null);
+    }
+
+    /**
+     * Constructor
+     *
+     * @param session Cassandra session
+     * @param keyspaceStrategy keyspace strategy
+     * @param evolutionFileName filename of evolutions, uses default value if null
+     * @throws IOException
+     */
+    public DbEvolution(Session session, KeyspaceStrategy keyspaceStrategy, String evolutionFileName) throws IOException {
+        if (session == null) {
+            throw new NullPointerException("session must not be null");
+        }
+        if (keyspaceStrategy == null) {
+            throw new NullPointerException("strategy must not be null");
+        }
         this.session = session;
         this.keyspaceStrategy = keyspaceStrategy;
-        try (final InputStreamReader json = new InputStreamReader(getClass().getResourceAsStream("/cassandra-evolutions.json"))) {
-            this.changesets = new Gson().fromJson(json, Changesets.class);
-            System.out.printf("Loaded %s change(s) into memory from cassandra-evolutions.json.%n", changesets.getChangesets().size());
+        final String fileName = evolutionFileName == null ? "cassandra-evolutions.json" : evolutionFileName;
+
+        logger.info("Loading evolutions from {}", fileName);
+        try (final InputStreamReader json = new InputStreamReader(getClass().getResourceAsStream("/" + fileName))) {
+            this.changeSets = new Gson().fromJson(json, ChangeSets.class);
+            logger.info("Loaded {} change(s) into memory from cassandra-evolutions.json.", changeSets.getChangeSets().size());
         }
     }
 
-
+    /**
+     * Coordinates all the work that needs to be done to get the database in sync.
+     *
+     */
     public void execute() {
-        ensureKeyspace(session);
-        ensureMetaTable(session);
-        final int latestEvolution = getLatestEvolution(session);
+        ensureKeyspace();
+        ensureMetaTable();
+        final int latestEvolution = getLatestEvolution();
         final List<Meta> changesToApply = getChangesToApply(latestEvolution);
-        applyChanges(changesToApply, session);
+        applyChanges(changesToApply);
     }
 
-
-    private void applyChanges(List<Meta> evolutionsToApply, Session session) {
+    /**
+     * Writes all the changes not applied yet to the database
+     *
+     * @param evolutionsToApply list of {@link Meta} to apply
+     */
+    private void applyChanges(List<Meta> evolutionsToApply) {
         if (evolutionsToApply.isEmpty()) {
-            System.out.println("No changes to apply. Cassandra is up-to-date");
+            logger.info("No changes to apply. Cassandra is up-to-date");
         } else {
             for (Meta meta : evolutionsToApply) {
                 session.execute(meta.getCql());
-                session.execute(String.format(EVOLUTION_INSERT, changesets.getKeyspace(), meta.getId(), meta.getAuthor(), new Date().getTime(), meta.getCql()));
-                System.out.printf("Applied change %s by author %s.%n", meta.getId(), meta.getAuthor());
+                session.execute(String.format(EVOLUTION_INSERT, changeSets.getKeyspace(), meta.getId(), meta.getAuthor(), new Date().getTime(), meta.getCql()));
+                logger.info("Applied change {} by author {}.", meta.getId(), meta.getAuthor());
             }
         }
     }
 
+    /**
+     * Creates a list of {@link Meta} that has not been applied yet to the database.
+     *
+     * @param latestEvolution the value of the latest evolution written.
+     * @return not null
+     */
     private List<Meta> getChangesToApply(int latestEvolution) {
         List<Meta> evolutionsToApply = new LinkedList<>();
-        for (Meta meta : changesets.getChangesets()) {
+        for (Meta meta : changeSets.getChangeSets()) {
             if (meta.getId() > latestEvolution) {
                 evolutionsToApply.add(meta);
             }
@@ -80,8 +121,13 @@ public class DbEvolution {
         return evolutionsToApply;
     }
 
-    private int getLatestEvolution(Session session) {
-        final SimpleStatement statement = new SimpleStatement(String.format("select id from %s.evolutions;", changesets.getKeyspace()));
+    /**
+     * Finds the id of the latest evolution from the database
+     *
+     * @return 0 if nothing was found in db
+     */
+    private int getLatestEvolution() {
+        final SimpleStatement statement = new SimpleStatement(String.format("select id from %s.evolutions;", changeSets.getKeyspace()));
         statement.setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM);
         final ResultSet execute = session.execute(statement);
         int max = 0;
@@ -91,28 +137,26 @@ public class DbEvolution {
                 max = id;
             }
         }
-        System.out.printf("Latest change applied to cassandra is: %s%n", max);
+        logger.info("Latest change applied to cassandra is: {}", max);
         return max;
     }
 
-
-    private void ensureMetaTable(Session session) {
-        final String cql = String.format(EVOLUTION_TABLE, changesets.getKeyspace());
-        System.out.println(cql);
+    /**
+     * Creates the evolution table if needed
+     */
+    private void ensureMetaTable() {
+        final String cql = String.format(EVOLUTION_TABLE, changeSets.getKeyspace());
+        logger.info(cql);
         session.execute(cql);
     }
 
-    private void ensureKeyspace(Session session) {
-        final String cql = String.format(KEYSPACE_DEFINITION, changesets.getKeyspace(), keyspaceStrategy.getStrategyAsString());
-        System.out.println(cql);
+    /**
+     * Creates the keyspace if needed - the keyspace defined in the evolutions mapping.
+     */
+    private void ensureKeyspace() {
+        final String cql = String.format(KEYSPACE_DEFINITION, changeSets.getKeyspace(), keyspaceStrategy.getStrategyAsString());
+        logger.info(cql);
         session.execute(cql);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        final Cluster localhost = new Cluster.Builder().addContactPoint("localhost").build();
-        final DbEvolution evolution = new DbEvolution(localhost.connect(), new SimpleKeyspaceStrategy(1));
-        evolution.execute();
-        Thread.sleep(25000L);
-        localhost.close();
-    }
 }
