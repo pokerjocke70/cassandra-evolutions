@@ -1,0 +1,35 @@
+{
+  "keyspace": "evolutions",
+  "changesets": [
+    {
+      "id": 1,
+      "author": "joasun",
+      "cql": "CREATE TABLE IF NOT EXISTS evolutions.evolutions2(id text,author text,applied_date timestamp,content text,PRIMARY KEY (id));"
+    },
+    {
+      "id": 2,
+      "author": "joasun",
+      "cql": "CREATE TABLE IF NOT EXISTS evolutions.evolutions3(id text,author text,applied_date timestamp,content text,PRIMARY KEY (id));"
+    },
+    {
+      "id": 3,
+      "author": "joasun",
+      "cql": "CREATE TABLE IF NOT EXISTS evolutions.evolutions4(id text,author text,applied_date timestamp,content text,PRIMARY KEY (id));"
+    },
+    {
+      "id": 4,
+      "author": "kalle",
+      "cql": "CREATE TABLE IF NOT EXISTS evolutions.evolutions5(id text,author text,applied_date timestamp,content text,PRIMARY KEY (id));"
+    },
+    {
+      "id": 5,
+      "author": "kalle",
+      "cql": "CREATE TABLE IF NOT EXISTS evolutions.evolutions6(id text,author text,applied_date timestamp,content text,PRIMARY KEY (id));"
+    },
+    {
+      "id": 6,
+      "author": "kalle",
+      "cql": "alter TABLE evolutions.evolutions6 ADD gravesite text;"
+    }
+  ]
+}
