@@ -1,4 +1,4 @@
-package com.bisnode.infra.cassandra.evolutions;
+package org.sundqvist.repository.cassandra.evolutions;
 
 /**
  * @author Joakim Sundqvist

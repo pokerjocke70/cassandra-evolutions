@@ -1,6 +1,8 @@
-package com.bisnode.infra.cassandra.evolutions;
+package org.sundqvist.repository.cassandra.evolutions;
 
 /**
+ * SimpleStrategy for Cassandra network
+ *
  * @author Joakim Sundqvist
  * @since 22/06/15
  */

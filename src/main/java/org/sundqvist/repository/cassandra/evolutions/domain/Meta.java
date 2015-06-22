@@ -1,4 +1,4 @@
-package com.bisnode.infra.cassandra.evolutions.domain;
+package org.sundqvist.repository.cassandra.evolutions.domain;
 
 /**
  * Models a specific database change

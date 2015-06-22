@@ -1,7 +1,7 @@
-package com.bisnode.infra.cassandra.evolutions;
+package org.sundqvist.repository.cassandra.evolutions;
 
-import com.bisnode.infra.cassandra.evolutions.domain.ChangeSets;
-import com.bisnode.infra.cassandra.evolutions.domain.Meta;
+import org.sundqvist.repository.cassandra.evolutions.domain.ChangeSets;
+import org.sundqvist.repository.cassandra.evolutions.domain.Meta;
 import com.datastax.driver.core.*;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
@@ -19,7 +19,7 @@ import java.util.List;
  * @author Joakim Sundqvist
  * @since 21/06/15
  */
-public class DbEvolution {
+public class CassandraEvolution {
 
     private final Session session;
 
@@ -46,7 +46,7 @@ public class DbEvolution {
      * @param session Cassandra session
      * @param keyspaceStrategy keyspace strategy
      */
-    public DbEvolution(Session session, KeyspaceStrategy keyspaceStrategy) throws IOException {
+    public CassandraEvolution(Session session, KeyspaceStrategy keyspaceStrategy) throws IOException {
         this(session, keyspaceStrategy, null);
     }
 
@@ -58,7 +58,7 @@ public class DbEvolution {
      * @param evolutionFileName filename of evolutions, uses default value if null
      * @throws IOException
      */
-    public DbEvolution(Session session, KeyspaceStrategy keyspaceStrategy, String evolutionFileName) throws IOException {
+    public CassandraEvolution(Session session, KeyspaceStrategy keyspaceStrategy, String evolutionFileName) throws IOException {
         if (session == null) {
             throw new NullPointerException("session must not be null");
         }
