@@ -14,35 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.sundqvist.repository.cassandra.evolutions.domain;
+package org.sundqvist.repository.cassandra.evolutions;
 
-import java.util.Collections;
-import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 /**
- * Models the list of database changes
+ * Test class for {@link NetworkTopologyKeyspaceStrategy}
  *
  * @author Joakim Sundqvist
- * @since 21/06/15
+ * @since 22/06/15
  */
-public class ChangeSets {
+public class NetworkTopologyKeyspaceStrategyTest {
 
-    private final List<Meta> changeSets;
-
-    private final String keyspace;
-
-
-    public ChangeSets(List<Meta> changes, String keyspace) {
-        this.changeSets = changes;
-        this.keyspace = keyspace;
-    }
-
-    public List<Meta> getChangeSets() {
-        Collections.sort(changeSets);
-        return Collections.unmodifiableList(changeSets);
-    }
-
-    public String getKeyspace() {
-        return keyspace;
+    @Test
+    public void testGetStrategyAsString() throws Exception {
+        Assert.assertEquals("{ 'class' : 'NetworkTopologyStrategy', 'dc1' : '3' }", new NetworkTopologyKeyspaceStrategy("dc1", 3).getStrategyAsString());
     }
 }

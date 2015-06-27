@@ -16,33 +16,27 @@
  */
 package org.sundqvist.repository.cassandra.evolutions.domain;
 
-import java.util.Collections;
-import java.util.List;
+import org.junit.Test;
+
+import java.util.Arrays;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Models the list of database changes
+ * Test class for {@link ChangeSets}
  *
  * @author Joakim Sundqvist
- * @since 21/06/15
+ * @since 22/06/15
  */
-public class ChangeSets {
+public class ChangeSetsTest {
 
-    private final List<Meta> changeSets;
+    @Test
+    public void testGetChangeSets() throws Exception {
 
-    private final String keyspace;
+        final ChangeSets demo = new ChangeSets(Arrays.asList(new Meta("", "", 2), new Meta("", "", 5), new Meta("", "", 0), new Meta("", "", 1)), "demo");
 
+        assertEquals(demo.getChangeSets().get(0).getId(), 0);
+        assertEquals(demo.getChangeSets().get(3).getId(), 5);
 
-    public ChangeSets(List<Meta> changes, String keyspace) {
-        this.changeSets = changes;
-        this.keyspace = keyspace;
-    }
-
-    public List<Meta> getChangeSets() {
-        Collections.sort(changeSets);
-        return Collections.unmodifiableList(changeSets);
-    }
-
-    public String getKeyspace() {
-        return keyspace;
     }
 }
