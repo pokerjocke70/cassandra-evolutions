@@ -1,5 +1,12 @@
 apply plugin: 'java'
 
+
+repositories {
+      mavenLocal()
+      jcenter()
+}
+
+
 defaultTasks = ['clean', 'build']
 
 
